@@ -1,25 +1,495 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101b32"><title>AS-IS Standalone OMR Scanner</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101b32">
+<title>AS-IS Standalone OMR Scanner</title>
 <style>
-:root{--bg:#0b1426;--panel:#172641;--line:#2b3d5c;--blue:#1689d8;--cyan:#21d4fd;--ink:#eaf2ff;--muted:#9fb0c9}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px Arial,sans-serif}.app{max-width:760px;margin:auto;padding:16px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.brand{font-weight:800;font-size:19px}.brand small{display:block;color:var(--muted);font-size:11px;margin-top:4px}.tag{font-size:11px;color:#8df1ff;background:#123d54;border-radius:20px;padding:7px 10px}.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:13px}h2{font-size:17px;margin:0 0 12px}label{display:block;color:#b8c8dd;font-size:12px;margin-top:10px}input,select{width:100%;padding:12px;background:#0d1930;border:1px solid var(--line);border-radius:9px;color:white;margin:6px 0 8px}button{border:0;border-radius:10px;background:var(--blue);color:white;padding:12px 15px;font-weight:700;cursor:pointer}button.secondary{background:#263957}.row{display:flex;gap:8px;flex-wrap:wrap}.row button{flex:1}.status{background:#173652;color:#b9eaff;padding:11px;border-radius:9px;font-size:12px;margin:10px 0}.bad{background:#4a252d;color:#ffd3d8}.good{background:#124532;color:#b8ffdc}.camera{background:#030811;border-radius:12px;overflow:hidden;position:relative}.camera video{display:block;width:100%;max-height:58vh;object-fit:contain}.frame{position:absolute;inset:7% 7%;border:2px dashed var(--cyan);pointer-events:none;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.item{background:#0d1930;border-radius:8px;padding:7px}.item b{display:block;font-size:12px;margin-bottom:5px}.item select{padding:7px;margin:0;font-size:12px}.muted{color:var(--muted);font-size:12px}.hidden{display:none!important}.footer{color:var(--muted);font-size:11px;text-align:center;margin:20px 0}@media(max-width:520px){.app{padding:11px}.grid{grid-template-columns:repeat(2,1fr)}}
-</style></head><body><main class="app">
-<header class="top"><div class="brand">AS-IS OMR SCANNER<small>Standalone HTTPS camera · 50 items · A–D</small></div><span class="tag">CAMERA MODE</span></header>
-<section class="card"><h2>Assessment connection</h2><label>Google Apps Script deployed /exec URL</label><input id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec"><label>Assessment ID</label><input id="assessmentId" placeholder="ASM-XXXXXXXX"><label>Student name</label><input id="studentName" placeholder="Enter complete learner name"><div class="muted">Open this scanner from the portal's HTTPS link so the connection details can be prefilled. You may also enter them manually.</div></section>
-<section class="card"><h2>1. Scan answer sheet</h2><div id="status" class="status">Camera has not started. This page must be hosted on HTTPS (GitHub Pages is supported).</div><div class="camera"><video id="video" autoplay playsinline muted></video><div class="frame"></div></div><div class="row" style="margin-top:10px"><button id="start">Start rear camera</button><button id="capture" class="secondary">Capture sheet</button><button id="stop" class="secondary">Stop</button></div><label style="display:inline-block;margin-top:14px">Or take/select a photo <input id="photo" type="file" accept="image/*" capture="environment"></label><canvas id="canvas" class="hidden"></canvas></section>
-<section id="review" class="card hidden"><h2>2. Verify detected answers</h2><div id="scanSummary" class="status"></div><p class="muted">Review every item. Correct any blank or incorrectly detected answer before saving.</p><div id="answers" class="grid"></div><div class="row" style="margin-top:14px"><button id="save">Save checked result</button><button id="rescan" class="secondary">Rescan</button></div></section>
-<div class="footer">AS-IS Integrated School · Assessment Analytics Portal</div></main>
+:root{--bg:#0b1426;--panel:#172641;--line:#2b3d5c;--blue:#1689d8;--cyan:#21d4fd;--ink:#eaf2ff;--muted:#9fb0c9}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px Arial,sans-serif}
+.app{max-width:820px;margin:auto;padding:16px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px}
+.brand{font-weight:800;font-size:19px}.brand small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.tag{font-size:11px;color:#8df1ff;background:#123d54;border-radius:20px;padding:7px 10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:15px;margin-bottom:13px}
+h2{font-size:17px;margin:0 0 12px}
+label{display:block;color:#b8c8dd;font-size:12px;margin-top:10px}
+input,select{width:100%;padding:12px;background:#0d1930;border:1px solid var(--line);border-radius:9px;color:white;margin:6px 0 8px}
+button{border:0;border-radius:10px;background:var(--blue);color:white;padding:12px 15px;font-weight:700;cursor:pointer}
+button.secondary{background:#263957}button:disabled{opacity:.55;cursor:wait}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row button{flex:1}
+.status{background:#173652;color:#b9eaff;padding:11px;border-radius:9px;font-size:12px;margin:10px 0}
+.bad{background:#4a252d;color:#ffd3d8}.good{background:#124532;color:#b8ffdc}.warn{background:#57421b;color:#ffe6a6}
+.camera{background:#030811;border-radius:12px;overflow:hidden;position:relative;min-height:180px}
+.camera video{display:block;width:100%;max-height:58vh;object-fit:contain}
+.frame{position:absolute;inset:7% 7%;border:2px dashed var(--cyan);pointer-events:none;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}
+.item{background:#0d1930;border-radius:8px;padding:7px;min-width:0}
+.item b{display:block;font-size:12px;margin-bottom:5px}
+.item select{padding:7px;margin:0;font-size:12px}
+.muted{color:var(--muted);font-size:12px;line-height:1.45}
+.hidden{display:none!important}.footer{color:var(--muted);font-size:11px;text-align:center;margin:20px 0}
+.debug{font:11px/1.4 monospace;color:#c7d7ee;white-space:pre-wrap;overflow-wrap:anywhere;background:#0b1426;padding:10px;border-radius:8px;margin-top:10px}
+@media(max-width:520px){.app{padding:11px}.grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main class="app">
+<header class="top">
+  <div class="brand">AS-IS OMR SCANNER<small>Standalone HTTPS camera · 50 items · A–D</small></div>
+  <span class="tag">CAMERA MODE</span>
+</header>
+
+<section class="card">
+  <h2>Assessment connection</h2>
+  <label>Google Apps Script deployed /exec URL</label>
+  <input id="gasUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+  <label>Assessment ID</label>
+  <input id="assessmentId" placeholder="ASM-XXXXXXXX">
+  <label>Student name</label>
+  <input id="studentName" placeholder="Enter complete learner name">
+  <div class="muted">Open this scanner from the portal's HTTPS link so the connection details can be prefilled. You may also enter them manually.</div>
+</section>
+
+<section class="card">
+  <h2>1. Scan answer sheet</h2>
+  <div id="status" class="status">Camera has not started. This page must be hosted on HTTPS (GitHub Pages is supported).</div>
+  <div class="camera">
+    <video id="video" autoplay playsinline muted></video>
+    <div class="frame"></div>
+  </div>
+  <div class="row" style="margin-top:10px">
+    <button id="start">Start rear camera</button>
+    <button id="capture" class="secondary">Capture sheet</button>
+    <button id="stop" class="secondary">Stop</button>
+  </div>
+  <label style="display:inline-block;margin-top:14px">Or take/select a photo
+    <input id="photo" type="file" accept="image/*" capture="environment">
+  </label>
+  <canvas id="canvas" class="hidden"></canvas>
+  <div class="muted">For best results, place the complete sheet flat, upright, evenly lit, and fill most of the camera view. Avoid shadows, glare, fingers, and tilted pages.</div>
+</section>
+
+<section id="review" class="card hidden">
+  <h2>2. Verify detected answers</h2>
+  <div id="scanSummary" class="status"></div>
+  <p class="muted">The scanner estimates the darkest bubble in each item. Check every item and correct any blank, faint, or multiple-shaded response before saving.</p>
+  <div id="answers" class="grid"></div>
+  <details style="margin-top:12px">
+    <summary class="muted">Show OMR diagnostics</summary>
+    <div id="diagnostics" class="debug"></div>
+  </details>
+  <div class="row" style="margin-top:14px">
+    <button id="save">Save checked result</button>
+    <button id="rescan" class="secondary">Rescan</button>
+  </div>
+</section>
+<div class="footer">AS-IS Integrated School · Assessment Analytics Portal</div>
+</main>
+
 <script>
-const $=id=>document.getElementById(id);let stream=null,responses=Array(50).fill('');
-const params=new URLSearchParams(location.search);$('gasUrl').value=params.get('gas')||localStorage.getItem('aa_gas_url')||'';$('assessmentId').value=params.get('assessmentId')||'';$('studentName').value=params.get('studentName')||'';
-function say(t,kind='status'){$('status').textContent=t;$('status').className='status '+kind}
-async function startCamera(){try{stopCamera(false);if(!window.isSecureContext){say('This scanner is not running in a secure context. Publish it on GitHub Pages or another HTTPS host.','bad');return}if(!navigator.mediaDevices?.getUserMedia){say('This browser does not support live camera access. Use the photo capture option below.','bad');return}say('Requesting camera permission from this standalone HTTPS page…');stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});$('video').srcObject=stream;await $('video').play();say('Camera connected. Keep the complete sheet flat, upright, and inside the frame.','good')}catch(e){let m=e.name==='NotAllowedError'?'Chrome/Android denied camera permission for this scanner website. Allow Camera for this exact HTTPS website in Chrome Site settings, then reload.':e.name==='NotFoundError'?'No camera was found on this device.':e.name==='NotReadableError'?'The camera is busy. Close Camera, Meet, Messenger, and other camera apps.':(e.message||'Camera could not start.');say(m+' ('+e.name+')','bad')}}
-function stopCamera(show=true){if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;$('video').srcObject=null;if(show)say('Camera stopped.')}
-function readImage(img){const c=$('canvas'),ctx=c.getContext('2d',{willReadFrequently:true});const scale=Math.min(1,2200/img.width);c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);ctx.drawImage(img,0,0,c.width,c.height);return sample(ctx,c.width,c.height)}
-// Initial fixed-template OMR sampler. Keep sheet fully visible and minimize tilt; manual verification is mandatory.
-function sample(ctx,w,h){const out=[];for(let q=0;q<50;q++){const col=Math.floor(q/10),row=q%10;const x0=w*(.105+col*.16),y0=h*(.205+row*.067);const scores=[];for(let k=0;k<4;k++){const cx=x0+k*w*.025,cy=y0,rad=Math.max(3,Math.round(Math.min(w,h)*.009));let dark=0,total=0;for(let yy=-rad;yy<=rad;yy+=2)for(let xx=-rad;xx<=rad;xx+=2){if(xx*xx+yy*yy<=rad*rad){const px=Math.max(0,Math.min(w-1,Math.round(cx+xx))),py=Math.max(0,Math.min(h-1,Math.round(cy+yy)));const d=ctx.getImageData(px,py,1,1).data;if((d[0]+d[1]+d[2])/3<115)dark++;total++}}scores.push(dark/Math.max(1,total))}const sorted=[...scores].sort((a,b)=>b-a);out.push(sorted[0]>.30&&sorted[0]-sorted[1]>.12?['A','B','C','D'][scores.indexOf(sorted[0])]:'')}return out}
-function showReview(){const blanks=responses.filter(x=>!x).length;$('scanSummary').textContent=`Detected ${50-blanks} of 50 responses. ${blanks} blank or uncertain. Please verify all 50 items.`;$('scanSummary').className='status '+(blanks?'bad':'good');$('answers').innerHTML=responses.map((v,i)=>`<div class="item"><b>Item ${i+1}</b><select data-i="${i}"><option value="">Blank / unclear</option>${['A','B','C','D'].map(a=>`<option value="${a}" ${v===a?'selected':''}>${a}</option>`).join('')}</select></div>`).join('');$('answers').querySelectorAll('select').forEach(el=>el.addEventListener('change',()=>responses[+el.dataset.i]=el.value));$('review').classList.remove('hidden');$('review').scrollIntoView({behavior:'smooth'})}
-function processPhoto(file){if(!file)return;const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{try{responses=readImage(img);showReview();say('Photo loaded. Verify the detected answers below.','good')}catch(e){say('Could not process image: '+e.message,'bad')}finally{URL.revokeObjectURL(url)}};img.onerror=()=>{URL.revokeObjectURL(url);say('Image could not be opened. Retake the photo.','bad')};img.src=url}
-function capture(){if(!$('video').videoWidth){say('Start the camera first, or use Take/select a photo.','bad');return}if(!$('studentName').value.trim()){say('Enter the student name first.','bad');return}responses=readImage($('video'));showReview()}
-function save(){const gas=$('gasUrl').value.trim(),id=$('assessmentId').value.trim(),name=$('studentName').value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(gas)||!gas.endsWith('/exec'))return alert('Enter the deployed Google Apps Script HTTPS /exec URL.');if(!id||!name)return alert('Assessment ID and student name are required.');if(responses.length!==50||responses.some(x=>!['A','B','C','D',''].includes(x)))return alert('Verify all 50 responses.');localStorage.setItem('aa_gas_url',gas);const cb='aaCallback'+Date.now();const payload={action:'scanSave',callback:cb,assessmentId:id,studentName:name,responses:JSON.stringify(responses),verified:'true'};const url=new URL(gas);Object.entries(payload).forEach(([k,v])=>url.searchParams.set(k,v));if(url.href.length>7500)return alert('Request is too long.');window[cb]=result=>{delete window[cb];$('save').disabled=false;if(result&&result.success){alert(`Saved successfully: ${result.score}/50 (${result.percentage}%).`);$('studentName').value='';$('review').classList.add('hidden');responses=Array(50).fill('')}else alert('Could not save: '+(result?.error||'Unknown server error'))};$('save').disabled=true;const script=document.createElement('script');script.src=url.href;script.onerror=()=>{delete window[cb];$('save').disabled=false;alert('Could not contact Apps Script. Confirm deployment access is set correctly and the latest version is deployed.')};document.body.appendChild(script);setTimeout(()=>{if(window[cb]){$('save').disabled=false;delete window[cb];alert('The server did not respond. Check the Apps Script deployment URL and try again.')}script.remove()},25000)}
-$('start').onclick=startCamera;$('capture').onclick=capture;$('stop').onclick=()=>stopCamera();$('photo').onchange=e=>{if(!$('studentName').value.trim())return alert('Enter the student name first.');processPhoto(e.target.files[0]);e.target.value=''};$('save').onclick=save;$('rescan').onclick=()=>{$('review').classList.add('hidden');say('Ready to scan another sheet.')};window.addEventListener('pagehide',()=>stopCamera(false));
-</script></body></html>
+'use strict';
+
+const $ = id => document.getElementById(id);
+let stream = null;
+let responses = Array(50).fill('');
+let scanDiagnostics = [];
+
+/*
+ * TEMPLATE CALIBRATION
+ * These normalized positions preserve the layout assumptions from the
+ * originally supplied scanner: 5 blocks x 10 rows, with A-D bubbles.
+ *
+ * IMPORTANT: If your printed answer sheet has a different layout, these
+ * values MUST be calibrated against that exact blank answer-sheet image.
+ */
+const OMR_TEMPLATE = {
+  columns: 5,
+  rowsPerColumn: 10,
+  firstBubbleX: 0.105,
+  columnStepX: 0.160,
+  firstRowY: 0.205,
+  rowStepY: 0.067,
+  optionStepX: 0.025,
+  bubbleRadiusFactor: 0.009,
+  sampleRadiusFactor: 0.0052,
+  darkPixelThreshold: 135,
+  minFillRatio: 0.19,
+  minScoreGap: 0.055
+};
+
+const params = new URLSearchParams(location.search);
+$('gasUrl').value = params.get('gas') || localStorage.getItem('aa_gas_url') || '';
+$('assessmentId').value = params.get('assessmentId') || '';
+$('studentName').value = params.get('studentName') || '';
+
+function say(message, kind='status') {
+  $('status').textContent = message;
+  $('status').className = 'status ' + kind;
+}
+
+async function startCamera() {
+  try {
+    stopCamera(false);
+    if (!window.isSecureContext) {
+      say('This scanner is not running in a secure context. Publish it on GitHub Pages or another HTTPS host.', 'bad');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      say('This browser does not support live camera access. Use the photo capture option below.', 'bad');
+      return;
+    }
+
+    say('Requesting camera permission from this standalone HTTPS page…');
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: {ideal: 'environment'},
+        width: {ideal: 1920},
+        height: {ideal: 1080}
+      }
+    });
+
+    $('video').srcObject = stream;
+    await $('video').play();
+    say('Camera connected. Keep the complete sheet flat, upright, and inside the camera view.', 'good');
+  } catch (e) {
+    const message =
+      e.name === 'NotAllowedError'
+        ? 'Chrome/Android denied camera permission for this scanner website. Allow Camera for this exact HTTPS website in Chrome Site settings, then reload.'
+        : e.name === 'NotFoundError'
+          ? 'No camera was found on this device.'
+          : e.name === 'NotReadableError'
+            ? 'The camera is busy. Close Camera, Meet, Messenger, and other camera apps.'
+            : (e.message || 'Camera could not start.');
+    say(message + ' (' + e.name + ')', 'bad');
+  }
+}
+
+function stopCamera(show=true) {
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = null;
+  $('video').srcObject = null;
+  if (show) say('Camera stopped.');
+}
+
+/*
+ * Supports HTMLVideoElement, HTMLImageElement and uploaded image files.
+ * The original implementation used img.width/img.height, which is wrong
+ * for a live video element; videoWidth/videoHeight must be used.
+ */
+function readImage(source) {
+  const canvas = $('canvas');
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
+
+  const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
+  const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
+
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error('Invalid image dimensions. Please capture the sheet again.');
+  }
+
+  const scale = Math.min(1, 2200 / sourceWidth);
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return sample(ctx, canvas.width, canvas.height);
+}
+
+/*
+ * Bubble scoring:
+ * - Read the canvas pixels once instead of calling getImageData for every pixel.
+ * - Sample inside each bubble to reduce the effect of the printed outline.
+ * - Compare the four candidate bubbles in each item.
+ * - Leave uncertain/multiple marks blank for manual review.
+ *
+ * This is still a fixed-template sampler, not automatic page-corner detection.
+ * It only works when the answer sheet matches OMR_TEMPLATE coordinates.
+ */
+function sample(ctx, width, height) {
+  const image = ctx.getImageData(0, 0, width, height);
+  const pixels = image.data;
+  const out = [];
+  scanDiagnostics = [];
+
+  const minDim = Math.min(width, height);
+  const radius = Math.max(2, Math.round(minDim * OMR_TEMPLATE.sampleRadiusFactor));
+  const answerLetters = ['A', 'B', 'C', 'D'];
+
+  function luminanceAt(x, y) {
+    const index = (y * width + x) * 4;
+    return 0.299 * pixels[index] + 0.587 * pixels[index + 1] + 0.114 * pixels[index + 2];
+  }
+
+  function scoreBubble(cx, cy) {
+    let dark = 0;
+    let total = 0;
+    let sum = 0;
+
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if ((dx * dx) + (dy * dy) > radius * radius) continue;
+
+        const x = Math.round(cx + dx);
+        const y = Math.round(cy + dy);
+        if (x < 0 || y < 0 || x >= width || y >= height) continue;
+
+        const lum = luminanceAt(x, y);
+        sum += lum;
+        total++;
+        if (lum < OMR_TEMPLATE.darkPixelThreshold) dark++;
+      }
+    }
+
+    return {
+      fill: total ? dark / total : 0,
+      mean: total ? sum / total : 255,
+      samples: total
+    };
+  }
+
+  for (let q = 0; q < 50; q++) {
+    const col = Math.floor(q / OMR_TEMPLATE.rowsPerColumn);
+    const row = q % OMR_TEMPLATE.rowsPerColumn;
+
+    const baseX = width * (OMR_TEMPLATE.firstBubbleX + col * OMR_TEMPLATE.columnStepX);
+    const y = height * (OMR_TEMPLATE.firstRowY + row * OMR_TEMPLATE.rowStepY);
+
+    const scores = [];
+    for (let option = 0; option < 4; option++) {
+      const x = baseX + width * OMR_TEMPLATE.optionStepX * option;
+      scores.push(scoreBubble(x, y));
+    }
+
+    const ranked = scores
+      .map((item, index) => ({...item, index}))
+      .sort((a, b) => b.fill - a.fill);
+
+    const top = ranked[0];
+    const second = ranked[1];
+    const gap = top.fill - second.fill;
+
+    let answer = '';
+    let reason = 'No clear shaded bubble';
+
+    if (top.fill >= OMR_TEMPLATE.minFillRatio && gap >= OMR_TEMPLATE.minScoreGap) {
+      answer = answerLetters[top.index];
+      reason = 'Detected';
+    } else if (top.fill >= OMR_TEMPLATE.minFillRatio && gap < OMR_TEMPLATE.minScoreGap) {
+      reason = 'Possible multiple mark / ambiguous';
+    }
+
+    out.push(answer);
+    scanDiagnostics.push({
+      item: q + 1,
+      answer: answer || 'UNCLEAR',
+      reason,
+      scores: scores.map(s => Number(s.fill.toFixed(3)))
+    });
+  }
+
+  return out;
+}
+
+function showReview() {
+  const blanks = responses.filter(value => !value).length;
+  const detected = 50 - blanks;
+
+  $('scanSummary').textContent =
+    `Detected ${detected} of 50 responses. ${blanks} blank or uncertain. Please verify all 50 items.`;
+  $('scanSummary').className = 'status ' + (blanks ? 'warn' : 'good');
+
+  $('answers').innerHTML = responses.map((value, index) => `
+    <div class="item">
+      <b>Item ${index + 1}</b>
+      <select data-i="${index}">
+        <option value="">Blank / unclear</option>
+        ${['A','B','C','D'].map(letter =>
+          `<option value="${letter}" ${value === letter ? 'selected' : ''}>${letter}</option>`
+        ).join('')}
+      </select>
+    </div>
+  `).join('');
+
+  $('answers').querySelectorAll('select').forEach(element => {
+    element.addEventListener('change', () => {
+      responses[Number(element.dataset.i)] = element.value;
+      updateSummary();
+    });
+  });
+
+  $('diagnostics').textContent = scanDiagnostics.map(d =>
+    `Item ${String(d.item).padStart(2, '0')}: ${d.answer} | ${d.reason} | A:${d.scores[0]} B:${d.scores[1]} C:${d.scores[2]} D:${d.scores[3]}`
+  ).join('\n');
+
+  $('review').classList.remove('hidden');
+  $('review').scrollIntoView({behavior: 'smooth'});
+}
+
+function updateSummary() {
+  const blanks = responses.filter(value => !value).length;
+  $('scanSummary').textContent =
+    `Detected ${50 - blanks} of 50 responses. ${blanks} blank or uncertain. Please verify all 50 items.`;
+  $('scanSummary').className = 'status ' + (blanks ? 'warn' : 'good');
+}
+
+function processPhoto(file) {
+  if (!file) return;
+
+  const objectUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  image.onload = () => {
+    try {
+      responses = readImage(image);
+      showReview();
+      say('Photo loaded. Verify the detected answers below.', 'good');
+    } catch (e) {
+      say('Could not process image: ' + e.message, 'bad');
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  };
+
+  image.onerror = () => {
+    URL.revokeObjectURL(objectUrl);
+    say('Image could not be opened. Retake the photo.', 'bad');
+  };
+
+  image.src = objectUrl;
+}
+
+function capture() {
+  const video = $('video');
+
+  if (!video.videoWidth || !video.videoHeight) {
+    say('Start the camera first, or use Take/select a photo.', 'bad');
+    return;
+  }
+
+  if (!$('studentName').value.trim()) {
+    say('Enter the student name first.', 'bad');
+    return;
+  }
+
+  try {
+    responses = readImage(video);
+    showReview();
+    say('Image captured. Verify detected answers below.', 'good');
+  } catch (e) {
+    say('OMR processing failed: ' + e.message, 'bad');
+  }
+}
+
+function save() {
+  const gas = $('gasUrl').value.trim();
+  const assessmentId = $('assessmentId').value.trim();
+  const studentName = $('studentName').value.trim();
+
+  if (!/^https:\/\/script\.google\.com\/macros\/s\//.test(gas) || !gas.endsWith('/exec')) {
+    alert('Enter the deployed Google Apps Script HTTPS /exec URL.');
+    return;
+  }
+
+  if (!assessmentId || !studentName) {
+    alert('Assessment ID and student name are required.');
+    return;
+  }
+
+  if (responses.length !== 50 || responses.some(value => !['A','B','C','D',''].includes(value))) {
+    alert('Verify all 50 responses.');
+    return;
+  }
+
+  if (responses.every(value => value === '')) {
+    alert('No answers were detected. Check the sheet alignment and OMR template before saving.');
+    return;
+  }
+
+  localStorage.setItem('aa_gas_url', gas);
+
+  const callbackName = 'aaCallback' + Date.now();
+  const payload = {
+    action: 'scanSave',
+    callback: callbackName,
+    assessmentId,
+    studentName,
+    responses: JSON.stringify(responses),
+    verified: 'true'
+  };
+
+  const url = new URL(gas);
+  Object.entries(payload).forEach(([key, value]) => url.searchParams.set(key, value));
+
+  if (url.href.length > 7500) {
+    alert('Request is too long.');
+    return;
+  }
+
+  let finished = false;
+  const script = document.createElement('script');
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+    delete window[callbackName];
+    $('save').disabled = false;
+    script.remove();
+  }
+
+  window[callbackName] = result => {
+    finish();
+
+    if (result && result.success) {
+      alert(`Saved successfully: ${result.score}/50 (${result.percentage}%).`);
+      $('studentName').value = '';
+      $('review').classList.add('hidden');
+      responses = Array(50).fill('');
+      scanDiagnostics = [];
+    } else {
+      alert('Could not save: ' + (result?.error || 'Unknown server error'));
+    }
+  };
+
+  $('save').disabled = true;
+  script.src = url.href;
+
+  script.onerror = () => {
+    finish();
+    alert('Could not contact Apps Script. Confirm deployment access is set correctly and the latest version is deployed.');
+  };
+
+  document.body.appendChild(script);
+
+  window.setTimeout(() => {
+    if (!finished) {
+      finish();
+      alert('The server did not respond. Check the Apps Script deployment URL and try again.');
+    }
+  }, 25000);
+}
+
+$('start').onclick = startCamera;
+$('capture').onclick = capture;
+$('stop').onclick = () => stopCamera();
+$('photo').onchange = event => {
+  if (!$('studentName').value.trim()) {
+    alert('Enter the student name first.');
+    event.target.value = '';
+    return;
+  }
+  processPhoto(event.target.files[0]);
+  event.target.value = '';
+};
+$('save').onclick = save;
+$('rescan').onclick = () => {
+  $('review').classList.add('hidden');
+  say('Ready to scan another sheet.');
+};
+window.addEventListener('pagehide', () => stopCamera(false));
+</script>
+</body>
+</html>
